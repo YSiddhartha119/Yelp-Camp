@@ -25,6 +25,9 @@ const { MongoStore } = require('connect-mongo');
 
 const dbUrl = process.env.DB_URL || 'mongodb://127.0.0.1:27017/camp-globe'
 
+// Kick off DB connection at module load so it is warm before first request
+connectDB(dbUrl).catch(err => console.error('Initial DB connection error:', err));
+
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
@@ -39,15 +42,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')))
 
-// Ensure DB is connected before handling any request (critical for Vercel serverless)
-app.use(async (req, res, next) => {
-    try {
-        await connectDB(dbUrl);
-        next();
-    } catch (err) {
-        console.error('DB connection failed:', err);
-        next(err);
-    }
+// Set safe defaults FIRST so views never crash with 'X is not defined'
+// even if a later middleware throws and the error handler renders a view
+app.use((req, res, next) => {
+    res.locals.currentUser = null;
+    res.locals.success = [];
+    res.locals.error = [];
+    next();
 });
 
 
@@ -135,7 +136,18 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+// Ensure DB is connected before any route runs
+app.use(async (req, res, next) => {
+    try {
+        await connectDB(dbUrl);
+        next();
+    } catch (err) {
+        console.error('DB connection failed:', err);
+        next(err);
+    }
+});
 
+// Override defaults with real values now that passport has run
 app.use((req, res, next) => {
     res.locals.success = req.flash('success');
     res.locals.error = req.flash('error');
