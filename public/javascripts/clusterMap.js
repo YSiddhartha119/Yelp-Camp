@@ -3,7 +3,7 @@ const map = new mapboxgl.Map({
     container: 'cluster-map',
     style: 'mapbox://styles/mapbox/dark-v10',
     center: [78.9629, 20.5937],  // India
-    zoom: 4.5
+    zoom: 4.5,
     attributionControl: false   // removes the "Improve this map" edit link
 });
 // Add compact attribution without the edit link (keeps Mapbox ToS compliant)
